@@ -1,0 +1,6 @@
+So I plotted the objective function value versus the iteration for the training and validation dataset.
+So based on the graph I have, it seems that the funciton tapers off around 200 iterations, which is what I'd say is the best learning rate.
+
+The standardization of the data does in fact cuase the optimization algorithm to converge faster, which is helpful for analysis.
+
+I submitted the data to the Kaggle competition and got about an 80% score, which is higher than what I've gotten in the past.
