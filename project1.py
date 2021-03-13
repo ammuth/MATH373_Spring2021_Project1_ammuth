@@ -1,298 +1,216 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Mar  8 10:37:55 2021
-
-@author: lngsm
-"""
-
-import pandas as pd
+#%% Import Libraries
 import numpy as np
+import pandas as pd
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
+from sklearn.datasets import load_diabetes
 import matplotlib.pyplot as plt
-import tqdm
 
-         
+#%% Linear Regression
+def linear_regression(Predictors, Response):
+     XTX = Predictors.T @ Predictors
+     XTy = Predictors.T @ Response
+     
+     beta = np.linalg.solve(XTX, XTy)
+     
+     return beta
+   
+#%% Binary Logistic Regression
 
-def sigmoid(theta, X):
-    return 1 / (1 + np.exp((-np.matmul(X,theta.transpose()))))
+#Sigmoid Binary Function
+def sigmoid_binary(realnumber):
+    Sigmoid = np.exp(realnumber)/(1 + np.exp(realnumber))
+    return(Sigmoid)
 
-def calculate_cost(theta, X, y, lbda): # theta is dimensions n x 1, X is dimensions m x n, y is dimensions m x 1, lbda is regularization constant
-    m = X.shape[0]
-    h = sigmoid(theta, X)
-    cost = (1/m)*(-y*np.log(h)-(1-y)*np.log(1-h)).sum() + (lbda / (2*m))*np.square(theta).sum()
-    cost -= (lbda / (2*m)) * theta[0]**2 # remove contribution of theta_zero as it should not be included in cost
-    return cost
+#Cross-Entropy Binary Function
+def crossentropy_binary(predictive, ground_truth):
+    ce = ((-1*ground_truth) * np.log(predictive)) - ((1 - ground_truth) * np.log(1-predictive))
+    return(ce)
 
-def calculate_grad(theta, X, y, lbda):
-    m = X.shape[0]
-    h = sigmoid(theta, X)
-    grad = np.matmul(X.transpose(),h - y) # vectorized implementation of gradient
-    grad += (lbda/m) * theta
-    grad[0] -= (lbda/m) * theta[0] # remove contribution of theta_zero as it should not be included in grad calculation
-    return grad
-
-def logistic_regression(X, y, alpha, iterations, test_X, test_y):
-    theta = np.random.rand(X.shape[1]) # randomly initiates weights
-    m = X.shape[0]
-    costs_train = []
-    costs_test = []
-    for i in range(iterations):
-        costs_train.append(calculate_cost(theta, X, y, 1))
-        theta -= alpha * (1/m)*calculate_grad(theta, X ,y, 1)
-        costs_test.append(calculate_cost(theta, test_X, test_y, 1))
-    x_graph = np.arange(0,iterations,1);    
-    plt.plot(x_graph,costs_train, label='train') 
-    plt.plot(x_graph,costs_test, label='test')
-    plt.legend()
-    return theta 
-
-def predict(theta, X, threshold):
-    pred = sigmoid(theta, X)
-    pred_result = (pred>=threshold).astype(int) # those above threshold = 1, 0 otherwise
-    return pred_result
-
-def normalize(X, mean, std):
-    return (X-mean) / std
-
-
-
-
-df = pd.read_csv('C:\\Users\\lngsm\\Documents\\math373\\DiabetesProject\\diabetes2.csv')
-df.isnull().sum()
-print(len(df[df['Outcome']==1]))
-print(len(df[df['Outcome']==0])) # making sure data is balanced, a bit of imbalance but should be okay
-train=df.sample(frac=0.75,random_state=150) #random state is a seed value
-test=df.drop(train.index)
-
-train_x = train.loc[:,train.columns != "Outcome"] # splitting dependent and independent variables
-test_x = test.loc[:,test.columns != "Outcome"]
-train_y = train['Outcome'].values
-test_y = test['Outcome'].values
-train_mean = train_x.mean(axis=0) # mean normalization
-train_std = train_x.std(axis=0)
-train_x = normalize(train_x,train_mean ,train_std)
-test_x = normalize(test_x,train_mean ,train_std )
-
-train_x.insert(0, 'One', 1) # adding column of ones for theta that is independent of features
-test_x.insert(0, 'One', 1)      
-
-
-theta = logistic_regression(train_x.values, train_y, 0.05, 500, test_x.values, test_y)
-
-pred_y = predict(theta, test_x.values, 0.6)
-result = pred_y == test_y
-pred_train_y = predict(theta, train_x.values, 0.6)
-result_train = pred_train_y == train_y
-print(sum(result) / len(result))    
-            
-            
-###############################################
-#############PART 2############################
-###############################################
-            
-train = pd.read_csv("C:\\Users\\lngsm\\Documents\\math373\\titanic_data\\train.csv")            
-test = pd.read_csv("C:\\Users\\lngsm\\Documents\\math373\\titanic_data\\test.csv")            
-  
-def fill_nan(data, key, method = "mean"):
-    if method == "mean":
-        data[key].fillna(data["Age"].mean(), inplace = True)
-    if method == "mode":
-        data[key].fillna(data["Age"].mode()[0], inplace = True)
-    if method == "median":
-        data[key].fillna(data["Age"].median(), inplace = True)        
-            
-data_train_cleaned = train.copy(deep = True)
-data_test_cleaned = test.copy(deep = True)
-
-#calculate stats of our data
-data_train_cleaned.describe(include = 'all')
-data_test_cleaned.describe(include = 'all')
-
-#clean data
-#fill empty age
-fill_nan(data_train_cleaned, "Age", "median")
-fill_nan(data_test_cleaned, "Age", "median")
-
-#fill empty embarked in train
-data_train_cleaned["Embarked"].fillna(data_train_cleaned["Embarked"].mode()[0], inplace = True)
-
-#fill empty fare in test
-data_test_cleaned["Fare"].fillna(data_test_cleaned["Fare"].mean(), inplace = True)
-
-data_train_cleaned = data_train_cleaned.drop("Cabin", axis = 1)
-data_test_cleaned = data_test_cleaned.drop("Cabin", axis = 1)
-
-data_train_cleaned = data_train_cleaned.drop(["PassengerId", "Name", "Ticket"], axis = 1)
-data_test_cleaned = data_test_cleaned.drop(["PassengerId", "Name", "Ticket"], axis = 1)
-
-
-
-#map Sex of a passenger to interger values , female : 0 , male : 1
-data_train_cleaned['Sex'] = data_train_cleaned['Sex'].map( {'female': 0, 'male': 1} ).astype(int)
-data_test_cleaned['Sex'] = data_test_cleaned['Sex'].map( {'female': 0, 'male': 1} ).astype(int)
-
-#map embarked of a passenger to integer values S: 0, C : 1, Q : 2
-data_train_cleaned['Embarked'] = data_train_cleaned['Embarked'].map({'S' : 0, 'C' : 1, 'Q': 2}).astype(int)
-data_test_cleaned['Embarked'] = data_test_cleaned['Embarked'].map({'S' : 0, 'C' : 1, 'Q': 2}).astype(int)
-
-
-
-
-#make a copy of our data to slice it
-X_data = data_train_cleaned.copy(deep = True).values # .values converst pandas dataframe to a numpy array
-
-#split data into train and val
-X_train = X_data[:623] #70% of our training data 891 is ~ 623 values
-X_val = X_data[623:] #30% of our training data is ~ 268 values
-
-# labels are " survived " column of the dataset
-Y_train = X_train[:,0]
-Y_val = X_val[:,0]
-
-#remove labels from dataset and only keep features
-X_train = np.delete(X_train, 0, axis = 1)
-X_val = np.delete(X_val, 0, axis = 1)
-
-X_train = X_train.T
-X_val = X_val.T
-
-#fix our lable matrix
-Y_train = Y_train.reshape((Y_train.shape[0], 1))
-Y_val = Y_val.reshape((Y_val.shape[0], 1))
-
-#sanity check
-print("x train :" + str(X_train.shape))
-print("x val :" + str(X_val.shape))
-print("y train :" + str(Y_train.shape))
-print("y val :" + str(Y_val.shape) )
-
-def calc_stats(data):
-    mu = data.mean(axis = 1, keepdims = True)
-    sigma = data.std(axis = 1, keepdims = True)
-    return mu, sigma
-
-def standardize(data, mu, sigma):
-    std_data = (data - mu) / sigma
-    return std_data
-mu, sigma = calc_stats(X_train)
-X_train = standardize(X_train, mu, sigma)
-X_val = standardize(X_val, mu, sigma)
-
-#sanity check !
-print(X_train.shape)
-print(X_train[:5])
-
-# initialize parameters
-def initialize_parameters(dim):
-    W = np.zeros((dim, 1))
-    b = 0
-    return W, b
-
-#forward propagation
-def forward_prop(X, W, b):
-#     #sanity check
-#     print("forward prop")
-#     print("X shape:" + str(X.shape))
-#     print("W shape:" + str(W.shape))
-    Z = np.dot(W.T, X) + b
-    A = sigmoid(Z)
-    return A.T
-
-#cost function
-def compute_cost(Y, A):
-#     #sanity check
-#     print("computing cost")
-#     print("Y shape:" + str(Y.shape))
-#     print("A shape:" + str(A.shape))
-    J = - np.sum(np.dot(Y.T, np.log(A)) + np.dot((1 - Y).T, np.log(1 - A)))/Y.shape[0]
-    return J
-
-def sigmoid(x):
-    sig = 1/(1 + np.exp(-x))
-    return sig
-# back prop function
-def back_prop(X, Y, A):
-    #sanity check
-#     print("back_prop")
-#     print("X shape:" + str(X.shape))
-#     print("Y shape:" + str(Y.shape))
-#     print("A shape:" + str(A.shape))
-    dW = np.dot(X, (A-Y))/X.shape[1]
-    db = np.sum(A - Y)/X.shape[1]
+#Loss Function
+def L_fast(beta, X, y):
+    y_pred = X @ beta
     
-    return dW, db
+    N = X.shape[0]
 
-#gradient descent
-def gradient_descent(W, b, dW, db, learning_rate = 0.001):
-    W = W - learning_rate * dW
-    b = b - learning_rate * db
-    return W, b
+    return (1/N)*np.sum((crossentropy_binary(sigmoid_binary(y_pred), y)))
 
-def logistic_regression(X, Y, num_iterations, learning_rate, print_cost = False, cost_graph = False):
-    m = X_train.shape[1] #number of training examples
-    W, b = initialize_parameters(X_train.shape[0]) #initialize learning parameters
-    for i in tqdm.tqdm(range(num_iterations)):
-        
-        A = forward_prop(X, W, b)
-        cost = compute_cost(Y, A)
-        dW, db = back_prop(X, Y, A)
-        W, b = gradient_descent(W, b, dW, db, learning_rate)
-        
-        # Record the costs
-        if i % 100 == 0:
-            costs.append(cost)
-        # Print the cost every 100 training iterations
-        if print_cost and i % 100 == 0:
-            print("Cost after iteration %i: %f" %(i, cost))    
-    if cost_graph == True:
-        plt.plot(costs)
-    return W, b
-
-#make predictions !
-def predict(X_val, W, b):
-    predictions = forward_prop(X_val, W, b)
+#Gradient Loss Function
+def grad_L(beta, X, y):
+    N = X.shape[0]
+    grad = 0
     
-    #map predictions below 0.5 to 0 and above 0.5 to 1
-    predictions[predictions > 0.5] = int(1)
-    predictions[predictions < 0.5] = int(0)
-    return predictions
+    for i in range(N):
+        xiHat = X[i]
+        yi = y[i]
+                
+        grad_i = (sigmoid_binary(np.vdot(xiHat, beta)) - yi)*xiHat
+        
+        grad += grad_i
+    
+    return grad/N
 
-# calculate accuracy
-def test_accuracy(predictions, Y_val):
-    accuracy = np.sum(predictions == Y_val)/predictions.shape[0]*100
-    return accuracy
-
-costs = [] #store cost to plot against iterations
-W, b = logistic_regression(X_train, Y_train, 10000, 0.01, cost_graph = True)
-
-#make predictions on our validation dataset
-preds_train = predict(X_train, W, b)
-preds_val = predict(X_val, W, b)
-#calculate accuracy of our predictions
-print(f"Accuracy on train data {test_accuracy(preds_train, Y_train)}%")
-print(f"Accuracy on validation data {test_accuracy(preds_val, Y_val)}%")
-
-X_test = data_test_cleaned.values
-
-#standardize test dataset
-X_test = X_test.T
-X_test = standardize(X_test, mu, sigma)
-
-#make predictions
-predictions_test = predict(X_test, W, b).astype(int)
-
-#compile into a dataframe
-predictions_df = pd.DataFrame({ 'PassengerId': test["PassengerId"], 'Survived': predictions_test[:,0]})
-
-#export dataframe as csv
-predictions_df.to_csv("C:\\Users\\lngsm\\Documents\\math373\\Logistic_regression.csv", index = False)
-
-predictions_df
+#Computing L to find lowest Objective Function Value per Iteration
+def minimizeL(X, y):
+    alpha = 1
+    
+    iterations = 50
+    d_1 = X.shape[1]
+    
+    L_vals = np.zeros(iterations)
+    beta_t = np.zeros((d_1))
+        
+    for t in range(iterations):
+        L_vals[t] = L_fast(beta_t, X, y)
+        
+        print("Iteration: ", t, "Objective Function value: ", L_vals[t])
+        
+        beta_t = beta_t - alpha*grad_L(beta_t, X, y)
+    
+    return beta_t, L_vals
 
 
+#%% Loading Datasets
+titanic_train = pd.read_csv('C:\\Users\\lngsm\\Documents\\math373\\titanic_data\\train.csv', sep = ',', header = 0)
+titanic_test = pd.read_csv('C:\\Users\\lngsm\\Documents\\math373\\titanic_data\\test.csv', sep = ',', header=0)
+
+titanic_test1 = pd.read_csv('C:\\Users\\lngsm\\Documents\\math373\\titanic_data\\test.csv', sep = ',', header=0)
+titanic_test1 = titanic_test1[['PassengerId']]
+
+survived_train = titanic_train['Survived']
+
+#%% Pre=processing data
+def set_titles(titanic_data):
+    #Take the Title of the person
+    def substrings_in_string(big_string, substrings):
+        for substring in substrings:
+            if str.find(big_string, substring) != -1:
+                return substring
+        return np.nan
+    
+    title_list=['Mrs', 'Mr', 'Master', 'Miss', 'Major', 'Rev',
+                        'Dr', 'Ms', 'Mlle','Col', 'Capt', 'Mme', 'Countess',
+                        'Don', 'Jonkheer']
+    
+    titanic_data['Title']=titanic_data['Name'].map(lambda x: substrings_in_string(x, title_list))
+    
+    def replace_titles(x):
+        title=x['Title']
+        if title in ['Don', 'Major', 'Capt', 'Jonkheer', 'Rev', 'Col']:
+            return 'Mr'
+        elif title in ['Countess', 'Mme']:
+            return 'Mrs'
+        elif title in ['Mlle', 'Ms']:
+            return 'Miss'
+        elif title =='Dr':
+            if x['Sex']=='Male':
+                return 'Mr'
+            else:
+                return 'Mrs'
+        else:
+            return title
+    titanic_data['Title'] = titanic_data.apply(replace_titles, axis=1)
+
+def preprocess_data(titanic_data):     
+    set_titles(titanic_data)
+    
+    titanic_data['Family_Size'] = (titanic_data['SibSp'] + titanic_data['Parch'])
+    
+    titanic_data = titanic_data[['Pclass', 'Sex', 'Age', 'Family_Size', 'Fare', 'Title', 'Embarked']]
+    
+    #Impute Values
+    median_age = titanic_data['Age'].median()
+    titanic_data['Age'].fillna(median_age, inplace=True)
+    
+    mean_fare = titanic_data['Fare'].mean()
+    titanic_data['Fare'].fillna(mean_fare, inplace=True)    
+    
+    #One-hot encode values
+    one_hot = pd.get_dummies(titanic_data['Pclass'])
+    titanic_data = titanic_data.drop(['Pclass'], axis = 1)
+    titanic_data = titanic_data.join(one_hot)
+    
+    one_hot = pd.get_dummies(titanic_data['Title'])
+    titanic_data = titanic_data.drop(['Title'], axis = 1)
+    titanic_data = titanic_data.join(one_hot)
+    
+    one_hot = pd.get_dummies(titanic_data['Embarked'])
+    titanic_data = titanic_data.drop(['Embarked'], axis = 1)
+    titanic_data = titanic_data.join(one_hot)
+    
+    titanic_data = titanic_data.drop('Sex', axis=1)
+    
+    return titanic_data
+
+#%% Diabetes Dataset - Linear Regression
+diabetes = load_diabetes()
+
+x_diabetes = diabetes.data
+
+y_diabetes = diabetes.target
+
+# Create X dataframe with diabetes data + Ones for Beta[0] coefficient
+nrow = x_diabetes.shape[0]
+
+X = np.zeros((nrow, 11))
+    
+X[ : , 0] = np.ones(nrow)
+X[ : , 1] = x_diabetes[ : , 0]
+X[ : , 2] = x_diabetes[ : , 1]
+X[ : , 3] = x_diabetes[ : , 2]
+X[ : , 4] = x_diabetes[ : , 3]
+X[ : , 5] = x_diabetes[ : , 4]
+X[ : , 6] = x_diabetes[ : , 5]
+X[ : , 7] = x_diabetes[ : , 6]
+X[ : , 8] = x_diabetes[ : , 7]
+X[ : , 9] = x_diabetes[ : , 8]
+X[ : , 10] = x_diabetes[ : , 9]
+
+beta_linearregression = linear_regression(X, y_diabetes)
+
+#Predict Values based on data
+yivalspred = (beta_linearregression[0]*X[ : , 0] + beta_linearregression[1]*X[ : , 1] + 
+    beta_linearregression[2]*X[ : , 2] + beta_linearregression[3]*X[ : , 3] +
+    beta_linearregression[4]*X[ : , 4] + beta_linearregression[5]*X[ : , 5] +
+    beta_linearregression[6]*X[ : , 6] + beta_linearregression[7]*X[ : , 7] +
+    beta_linearregression[8]*X[ : , 8] + beta_linearregression[9]*X[ : , 9] + 
+    beta_linearregression[10]*X[ : , 10])
 
 
+#Plot Predicted vs Actual
+plt.figure()
+plt.scatter(yivalspred, y_diabetes)
 
+print("Beta values of Linear Regression: " + str(beta_linearregression))
 
+#%% Titanic Dataset - Binary Logistic Regression
+titanic_train = preprocess_data(titanic_train)
 
+titanic_train = titanic_train.values
 
+#Standardize the data
+scaler = StandardScaler()
+titanic_train = scaler.fit_transform(titanic_train) 
 
+titanic_train = np.insert(titanic_train, 0, 1, axis=1)
+
+beta_est, L_vals = minimizeL(titanic_train, survived_train)
+
+plt.plot(L_vals)
+
+print("Beta Estimate: ", beta_est)
+
+### Predictions
+titanic_test = preprocess_data(titanic_test)
+titanic_test = titanic_test.values
+scaler = StandardScaler()
+titanic_test = scaler.fit_transform(titanic_test) 
+
+titanic_test = np.insert(titanic_test, 0, 1, axis=1)
+
+predictions = np.round(sigmoid_binary(titanic_test@beta_est))
+
+titanic_test1['Survived']=pd.Series(predictions)
+titanic_test1['Survived'] = titanic_test1['Survived'].astype(int)
+
+titanic_test1.to_csv('Titanic Submission.csv', sep=',', index=False)
